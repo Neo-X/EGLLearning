@@ -639,7 +639,8 @@ gears_idle(void)
 {
    static int frames = 0;
    static double tRot0 = -1.0, tRate0 = -1.0;
-   double dt, t = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
+   // double dt, t = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
+   double dt, t = 0.01;
 
    if (tRot0 < 0.0)
       tRot0 = t;
@@ -768,7 +769,7 @@ main(int argc, char *argv[])
    glutInitWindowSize(300, 300);
    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
 
-   glutCreateWindow("es2gears");
+   // glutCreateWindow("es2gears");
 
    /* Set up glut callback functions */
    glutIdleFunc (gears_idle);
@@ -779,7 +780,14 @@ main(int argc, char *argv[])
    /* Initialize the gears */
    gears_init();
 
-   glutMainLoop();
+   // glutMainLoop();
+
+   for (int i = 0; i < 10; i++)
+   {
+	   gears_reshape(300,300);
+	   gears_idle();
+	   gears_draw();
+   }
 
    return 0;
 }

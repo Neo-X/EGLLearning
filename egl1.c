@@ -9,6 +9,8 @@ int main(int argc, char *argv[])
 {
 	EGLint ai32ContextAttribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2,
 												 EGL_NONE };
+	static const int pbufferWidth = 9;
+	static const int pbufferHeight = 9;
 	char *dpyName = NULL;
 	Display *x_dpy;
 	x_dpy = XOpenDisplay(dpyName);
@@ -19,11 +21,13 @@ int main(int argc, char *argv[])
 	}
 
     // Step 1 - Get the default display.
-    EGLDisplay eglDisplay = eglGetDisplay((EGLNativeDisplayType)0);
+    EGLDisplay eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     std::cout << glGetError() << std::endl;
 
     // Step 2 - Initialize EGL.
-    eglInitialize(eglDisplay, 0, 0);
+    EGLint major, minor;
+    eglInitialize(eglDisplay, &major, &minor);
+    std::cout << "Version support, major: " << major << ", minor: " << minor << std::endl;
     std::cout << glGetError() << std::endl;
 
     const char *s;
@@ -42,30 +46,25 @@ int main(int argc, char *argv[])
     std::cout << glGetError() << std::endl;
 
     // Step 4 - Specify the required configuration attributes.
-    EGLint pi32ConfigAttribs[5];
-    pi32ConfigAttribs[0] = EGL_SURFACE_TYPE;
-    pi32ConfigAttribs[1] = EGL_WINDOW_BIT;
-    pi32ConfigAttribs[2] = EGL_RENDERABLE_TYPE;
-    pi32ConfigAttribs[3] = EGL_OPENGL_ES2_BIT;
-    pi32ConfigAttribs[4] = EGL_NONE;
     static const EGLint attribs[] = {
-          EGL_RED_SIZE, 1,
-          EGL_GREEN_SIZE, 1,
-          EGL_BLUE_SIZE, 1,
-          EGL_DEPTH_SIZE, 1,
-          EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-          EGL_NONE
-       };
-       static const EGLint ctx_attribs[] = {
-          EGL_CONTEXT_CLIENT_VERSION, 3,
-          EGL_NONE
-       };
+            EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
+            EGL_BLUE_SIZE, 8,
+            EGL_GREEN_SIZE, 8,
+            EGL_RED_SIZE, 8,
+            EGL_DEPTH_SIZE, 8,
+            EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
+            EGL_NONE
+    };
+    static const EGLint pbufferAttribs[] = {
+          EGL_WIDTH, pbufferWidth,
+          EGL_HEIGHT, pbufferHeight,
+          EGL_NONE,
+    };
 
     // Step 5 - Find a config that matches all requirements.
-    int iConfigs;
+    EGLint iConfigs;
     EGLConfig eglConfig;
-    eglChooseConfig(eglDisplay, attribs, &eglConfig, 1,
-                                                    &iConfigs);
+    eglChooseConfig(eglDisplay, attribs, &eglConfig, 1, &iConfigs);
     if (iConfigs != 1) {
         printf("Error: eglChooseConfig(): config not found.\n");
         exit(-1);
@@ -79,35 +78,37 @@ int main(int argc, char *argv[])
           exit(1);
        }
 
-    eglBindAPI(EGL_OPENGL_ES_API);
-    // eglBindAPI(EGL_OPENGL_API);
-    // Step 7 - Create a context.
-    EGLContext eglContext;
-	eglContext = eglCreateContext(eglDisplay, eglConfig, NULL,
-			ctx_attribs);
-	std::cout << glGetError() << std::endl;
-   /* test eglQueryContext() */
-   {
-	  EGLint val;
-	  eglQueryContext(eglDisplay, eglContext, EGL_CONTEXT_CLIENT_VERSION, &val);
-	  std::cout << glGetError() << " val: " << val << std::endl;
-	  assert(val == 3);
-   }
-
     // Step 6 - Create a surface to draw to.
     EGLSurface eglSurface;
-    eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig,
-                                  (EGLNativeWindowType)NULL, NULL);
+    // eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig,
+       //                           (EGLNativeWindowType)NULL, NULL);
+    EGLSurface eglSurf = eglCreatePbufferSurface(eglDisplay, eglConfig,
+                                                   pbufferAttribs);
     std::cout << glGetError() << std::endl;
 
+    eglBindAPI(EGL_OPENGL_ES_API);
+    // eglBindAPI(EGL_OPENGL_API);
+
+      // Step 7 - Create a context.
+          EGLContext eglContext;
+      	eglContext = eglCreateContext(eglDisplay, eglConfig, EGL_NO_CONTEXT,
+      			NULL);
+      	std::cout << glGetError() << std::endl;
+         /* test eglQueryContext() */
+         {
+      	  EGLint val;
+      	  eglQueryContext(eglDisplay, eglContext, EGL_CONTEXT_CLIENT_VERSION, &val);
+      	  std::cout << glGetError() << " val: " << val << std::endl;
+      	  assert(val != 0);
+         }
 
     // Step 8 - Bind the context to the current thread
     eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
     std::cout << glGetError() << std::endl;
 
     GLuint fboId = 0;
-    GLuint renderBufferWidth = 512;
-    GLuint renderBufferHeight = 512;
+    GLuint renderBufferWidth = pbufferWidth;
+    GLuint renderBufferHeight = pbufferHeight;
 
 
     // create a texture object
@@ -231,7 +232,7 @@ int main(int argc, char *argv[])
   std::cout << "done" << std::endl;
 
   // QCoreApplication a(argc, argv);
-
+  eglTerminate(eglDisplay);
   // return a.exec();
   return 0;
 }
