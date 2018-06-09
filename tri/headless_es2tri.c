@@ -27,7 +27,7 @@
 #include <GLES2/gl2.h>  /* use OpenGL ES 2.x */
 #endif
 #include <EGL/egl.h>
-
+#include <iostream>
 
 #define FLOAT_TO_FIXED(X)   ((X) * 65535.0)
 
@@ -269,7 +269,6 @@ init(void)
    create_shaders();
 }
 
-
 /*
  * Create an RGB, double-buffered X window.
  * Return the window and context handles.
@@ -378,7 +377,7 @@ make_x_window(Display *x_dpy, EGLDisplay egl_dpy,
    {
       EGLint val;
       eglQueryContext(egl_dpy, ctx, EGL_CONTEXT_CLIENT_VERSION, &val);
-      printf("qeurry EGL_CONTEXT_CLIENT_VERSION %d", val);
+      printf("qeurry EGL_CONTEXT_CLIENT_VERSION %d\n", val);
       assert(val != 0);
    }
 #endif
@@ -406,6 +405,149 @@ make_x_window(Display *x_dpy, EGLDisplay egl_dpy,
    *ctxRet = ctx;
 }
 
+/*
+ * Create an RGB, double-buffered X window.
+ * Return the window and context handles.
+ */
+static void
+make_headless_window(Display *x_dpy, EGLDisplay egl_dpy,
+              const char *name,
+              int x, int y, int width, int height,
+              Window *winRet,
+              EGLContext *ctxRet,
+              EGLSurface *surfRet)
+{
+   static const EGLint attribs[] = {
+      EGL_RED_SIZE, 1,
+      EGL_GREEN_SIZE, 1,
+      EGL_BLUE_SIZE, 1,
+      EGL_DEPTH_SIZE, 1,
+      EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+      EGL_NONE
+   };
+#if USE_FULL_GL
+   static const EGLint ctx_attribs[] = {
+       EGL_NONE
+   };
+#else
+   static const EGLint ctx_attribs[] = {
+      EGL_CONTEXT_CLIENT_VERSION, 2,
+      EGL_NONE
+   };
+#endif
+
+   int scrnum;
+   XSetWindowAttributes attr;
+   unsigned long mask;
+   Window root;
+   Window win;
+   XVisualInfo *visInfo, visTemplate;
+   int num_visuals;
+   EGLContext ctx;
+   EGLConfig config;
+   EGLint num_configs;
+   EGLint vid;
+
+   scrnum = DefaultScreen( x_dpy );
+   root = RootWindow( x_dpy, scrnum );
+
+   if (!eglChooseConfig( egl_dpy, attribs, &config, 1, &num_configs)) {
+      printf("Error: couldn't get an EGL visual config\n");
+      exit(1);
+   }
+
+   assert(config);
+   assert(num_configs > 0);
+
+   if (!eglGetConfigAttrib(egl_dpy, config, EGL_NATIVE_VISUAL_ID, &vid)) {
+      printf("Error: eglGetConfigAttrib() failed\n");
+      exit(1);
+   }
+
+   /* The X window visual must match the EGL config */
+   visTemplate.visualid = vid;
+   visInfo = XGetVisualInfo(x_dpy, VisualIDMask, &visTemplate, &num_visuals);
+   if (!visInfo) {
+      printf("Error: couldn't get X visual\n");
+      exit(1);
+   }
+
+   /* window attributes */
+   attr.background_pixel = 0;
+   attr.border_pixel = 0;
+   attr.colormap = XCreateColormap( x_dpy, root, visInfo->visual, AllocNone);
+   attr.event_mask = StructureNotifyMask | ExposureMask | KeyPressMask;
+   mask = CWBackPixel | CWBorderPixel | CWColormap | CWEventMask;
+
+   win = XCreateWindow( x_dpy, root, 0, 0, width, height,
+		        0, visInfo->depth, InputOutput,
+		        visInfo->visual, mask, &attr );
+
+   /* set hints and properties */
+   {
+      XSizeHints sizehints;
+      sizehints.x = x;
+      sizehints.y = y;
+      sizehints.width  = width;
+      sizehints.height = height;
+      sizehints.flags = USSize | USPosition;
+      XSetNormalHints(x_dpy, win, &sizehints);
+      XSetStandardProperties(x_dpy, win, name, name,
+                              None, (char **)NULL, 0, &sizehints);
+   }
+
+#if USE_FULL_GL /* XXX fix this when eglBindAPI() works */
+   eglBindAPI(EGL_OPENGL_API);
+#else
+   eglBindAPI(EGL_OPENGL_ES_API);
+#endif
+
+   ctx = eglCreateContext(egl_dpy, config, EGL_NO_CONTEXT, ctx_attribs );
+   if (!ctx) {
+      printf("Error: eglCreateContext failed\n");
+      exit(1);
+   }
+
+#if !USE_FULL_GL
+   /* test eglQueryContext() */
+   {
+      EGLint val;
+      eglQueryContext(egl_dpy, ctx, EGL_CONTEXT_CLIENT_VERSION, &val);
+      printf("qeurry EGL_CONTEXT_CLIENT_VERSION %d\n", val);
+      assert(val != 0);
+   }
+#endif
+
+   // *surfRet = eglCreateWindowSurface(egl_dpy, config, (EGLNativeWindowType)NULL, NULL);
+   static const EGLint pbufferAttribs[] = {
+         EGL_WIDTH, 300,
+         EGL_HEIGHT, 300,
+         EGL_NONE,
+   };
+   *surfRet = eglCreatePbufferSurface(egl_dpy, config,
+                                                      pbufferAttribs);
+   if (!*surfRet) {
+	  std::cout << glGetError() << std::endl;
+      printf("Error: eglCreateWindowSurface failed\n");
+      exit(1);
+   }
+
+   /* sanity checks */
+   {
+      EGLint val;
+      eglQuerySurface(egl_dpy, *surfRet, EGL_WIDTH, &val);
+      assert(val == width);
+      eglQuerySurface(egl_dpy, *surfRet, EGL_HEIGHT, &val);
+      assert(val == height);
+      assert(eglGetConfigAttrib(egl_dpy, config, EGL_SURFACE_TYPE, &val));
+      assert(val & EGL_WINDOW_BIT);
+   }
+
+   XFree(visInfo);
+
+   *winRet = win;
+   *ctxRet = ctx;
+}
 
 static void
 event_loop(Display *dpy, Window win,
@@ -510,7 +652,7 @@ main(int argc, char *argv[])
       return -1;
    }
 
-   egl_dpy = eglGetDisplay(x_dpy);
+   egl_dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
    if (!egl_dpy) {
       printf("Error: eglGetDisplay() failed\n");
       return -1;
@@ -533,7 +675,7 @@ main(int argc, char *argv[])
    s = eglQueryString(egl_dpy, EGL_CLIENT_APIS);
    printf("EGL_CLIENT_APIS = %s\n", s);
 
-   make_x_window(x_dpy, egl_dpy,
+   make_headless_window(x_dpy, egl_dpy,
                  "OpenGL ES 2.x tri", 0, 0, winWidth, winHeight,
                  &win, &egl_ctx, &egl_surf);
 

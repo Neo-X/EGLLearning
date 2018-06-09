@@ -12,13 +12,6 @@ int main(int argc, char *argv[])
 	static const int pbufferWidth = 9;
 	static const int pbufferHeight = 9;
 	char *dpyName = NULL;
-	Display *x_dpy;
-	x_dpy = XOpenDisplay(dpyName);
-	if (!x_dpy) {
-	   printf("Error: couldn't open display %s\n",
-		  dpyName ? dpyName : getenv("DISPLAY"));
-	   return -1;
-	}
 
     // Step 1 - Get the default display.
     EGLDisplay eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
