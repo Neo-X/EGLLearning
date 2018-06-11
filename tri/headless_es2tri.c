@@ -24,7 +24,7 @@
 #if USE_FULL_GL
 #include "gl_wrap.h"  /* use full OpenGL */
 #else
-#include <GLES2/gl2.h>  /* use OpenGL ES 2.x */
+#include <GLES3/gl3.h>  /* use OpenGL ES 3.x */
 #endif
 #include <EGL/egl.h>
 #include <iostream>
@@ -344,8 +344,8 @@ make_headless_window(EGLDisplay egl_dpy,
    /// Could not get A WindowSurface to work
    // *surfRet = eglCreateWindowSurface(egl_dpy, config, (EGLNativeWindowType)NULL, NULL);
    static const EGLint pbufferAttribs[] = {
-         EGL_WIDTH, 300,
-         EGL_HEIGHT, 300,
+         EGL_WIDTH, width,
+         EGL_HEIGHT, height,
          EGL_NONE,
    };
    *surfRet = eglCreatePbufferSurface(egl_dpy, config,
@@ -410,7 +410,7 @@ main(int argc, char *argv[])
 
    make_headless_window(egl_dpy,
                  "OpenGL ES 2.x tri", 0, 0, winWidth, winHeight,
-                 &egl_ctx, &egl_surf);
+                &egl_ctx, &egl_surf);
 
    if (!eglMakeCurrent(egl_dpy, egl_surf, egl_surf, egl_ctx)) {
       printf("Error: eglMakeCurrent() failed\n");
