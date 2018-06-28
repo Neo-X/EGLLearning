@@ -7,7 +7,4 @@
 
 ### Mesa example
 
-  1. sudo apt install mesa-common-dev
-  1. sudo apt install libosmesa6-dev
-  1. sudo apt install libglu1-mesa-dev
-  1. sudo apt install gcc
+  1. sudo apt-get install mesa-common-dev libosmesa6-dev libglu1-mesa-dev
