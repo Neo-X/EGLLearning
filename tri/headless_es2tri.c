@@ -313,7 +313,7 @@ make_headless_window(EGLDisplay egl_dpy,
    }
 
    assert(config);
-   assert(num_configs > 0);
+   // assert(num_configs > 0);
 
    if (!eglGetConfigAttrib(egl_dpy, config, EGL_NATIVE_VISUAL_ID, &vid)) {
       printf("Error: eglGetConfigAttrib() failed\n");
