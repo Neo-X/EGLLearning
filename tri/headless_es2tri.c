@@ -34,9 +34,17 @@
 
 
 static GLfloat view_rotx = 0.0, view_roty = 0.0;
+static GLfloat view_transx = 0.0, view_transy = 0.0, view_transz = 0.0;
 
 static GLint u_matrix = -1;
 static GLint attr_pos = 0, attr_color = 1;
+
+static void setPosition(GLfloat xs, GLfloat ys, GLfloat zs)
+{
+	view_transx = xs;
+	view_transy = ys;
+	view_transz = zs;
+}
 
 
 static void
@@ -65,6 +73,25 @@ make_scale_matrix(GLfloat xs, GLfloat ys, GLfloat zs, GLfloat *m)
    m[5] = ys;
    m[10] = zs;
    m[15] = 1.0;
+}
+
+/*
+ * row major matrix?
+ */
+static void
+make_translation_matrix(GLfloat x, GLfloat y, GLfloat z, GLfloat *m)
+{
+   int i;
+   for (i = 0; i < 16; i++)
+      m[i] = 0.0;
+
+   m[0] = m[5] = m[10] = m[15] = 1.0;
+	// m[3] = x;
+	// m[7] = y;
+	// m[11] = z;
+	m[12] = x;
+	m[13] = y;
+	m[14] = z;
 }
 
 
@@ -146,12 +173,14 @@ draw(void)
       { 0, 1, 0 },
       { 0, 0, 1 }
    };
-   GLfloat mat[16], rot[16], scale[16];
+   GLfloat mat[16], rot[16], scale[16], trans[16];
 
    /* Set modelview/projection matrix */
    make_z_rot_matrix(view_rotx, rot);
    make_scale_matrix(0.5, 0.5, 0.5, scale);
-   mul_matrix(mat, rot, scale);
+   make_translation_matrix(view_transx, view_transy, view_transz, trans);
+   mul_matrix(mat, trans, rot);
+   mul_matrix(mat, mat, scale);
    glUniformMatrix4fv(u_matrix, 1, GL_FALSE, mat);
 
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -263,7 +292,7 @@ init(void)
    assert(p);
 #endif
 
-   glClearColor(0.4, 0.4, 0.4, 0.0);
+   glClearColor(0.9, 0.9, 0.9, 0.0);
 
    create_shaders();
 }
@@ -313,7 +342,7 @@ make_headless_window(EGLDisplay egl_dpy,
    }
 
    assert(config);
-   // assert(num_configs > 0);
+   assert(num_configs > 0);
 
    if (!eglGetConfigAttrib(egl_dpy, config, EGL_NATIVE_VISUAL_ID, &vid)) {
       printf("Error: eglGetConfigAttrib() failed\n");
@@ -433,8 +462,14 @@ main(int argc, char *argv[])
    reshape(winWidth, winHeight);
 
    draw();
-	eglSwapBuffers(egl_dpy, egl_surf);
-	save_PPM();
+   for (size_t i = 0; i < 5; i++)
+   {
+		draw();
+		eglSwapBuffers(egl_dpy, egl_surf);
+		save_PPM();
+		view_rotx += 5.0;
+		setPosition(i * 0.2, i * 0.2 + 0.2, 0);
+   }
 
    eglDestroyContext(egl_dpy, egl_ctx);
    eglDestroySurface(egl_dpy, egl_surf);
