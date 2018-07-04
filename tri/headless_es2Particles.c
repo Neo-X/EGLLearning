@@ -510,6 +510,13 @@ int main(int argc, char *argv[])
    EGLint egl_major, egl_minor;
    int i;
    const char *s;
+   int cudaIndexDesired = 0;
+   if ( argc == 2)
+   {
+	   std::cout << argv[1] << std::endl;
+	   cudaIndexDesired = atoi(argv[1]);
+   }
+   std::cout << "Desired device: " << cudaIndexDesired << std::endl;
 
    /*
    static const int MAX_DEVICES = 4;
@@ -531,7 +538,6 @@ int main(int argc, char *argv[])
    egl_dpy = eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT,
                                      eglDevs[0], 0);
 */
-   int cudaIndexDesired = 0;
    PFNEGLQUERYDEVICESEXTPROC eglQueryDevicesEXT = (PFNEGLQUERYDEVICESEXTPROC)eglGetProcAddress("eglQueryDevicesEXT");
    checkEglError("Failed to get EGLEXT: eglQueryDevicesEXT");
    PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT = (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress("eglGetPlatformDisplayEXT");
@@ -577,7 +583,7 @@ int main(int argc, char *argv[])
            if (cudaIndex == cudaIndexDesired)
              break;
          }*/
-         if (i < numberDevices)
+         if (cudaIndexDesired < numberDevices)
          {
            egl_dpy = eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT, eglDevs[i], 0);
            checkEglError("Error getting Platform Display: eglGetPlatformDisplayEXT");
