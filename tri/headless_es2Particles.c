@@ -585,9 +585,9 @@ int main(int argc, char *argv[])
          }*/
          if (cudaIndexDesired < numberDevices)
          {
-           egl_dpy = eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT, eglDevs[i], 0);
+           egl_dpy = eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT, eglDevs[cudaIndexDesired], 0);
            checkEglError("Error getting Platform Display: eglGetPlatformDisplayEXT");
-           std::cerr << "Got Cuda device " << cudaIndex << std::endl;
+           std::cerr << "Got Cuda device " << cudaIndexDesired << std::endl;
          }
          else
          {
