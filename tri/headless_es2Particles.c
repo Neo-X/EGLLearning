@@ -565,6 +565,7 @@ int main(int argc, char *argv[])
          );
          checkEglError("Error getting number of devices: eglQueryDevicesEXT");
 
+         /*
          for(i=0; i<numberDevices; i++)
          {
            checkEglReturn(
@@ -575,7 +576,7 @@ int main(int argc, char *argv[])
            std::cout << "Device index: " << cudaIndex << std::endl;
            if (cudaIndex == cudaIndexDesired)
              break;
-         }
+         }*/
          if (i < numberDevices)
          {
            egl_dpy = eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT, eglDevs[i], 0);
