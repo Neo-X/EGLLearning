@@ -14,6 +14,7 @@ all: native
 
 native: es2tri.c
 	g++ -o headless_demo headless_es2tri.c $(CFLAGS) $(LIBS) 
+	g++ -o headless_demo_particles headless_es2Particles.c $(CFLAGS) $(LIBS) 
 
 clean: demo*
 	rm demo demo.html 2>/dev/null

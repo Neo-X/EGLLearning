@@ -35,6 +35,7 @@
 
 static GLfloat view_rotx = 0.0, view_roty = 0.0;
 static GLfloat view_transx = 0.0, view_transy = 0.0, view_transz = 0.0;
+static GLfloat view_transx2 = 0.0, view_transy2 = 0.0, view_transz2 = 0.0;
 
 static GLint u_matrix = -1;
 static GLint attr_pos = 0, attr_color = 1;
@@ -44,6 +45,13 @@ static void setPosition(GLfloat xs, GLfloat ys, GLfloat zs)
 	view_transx = xs;
 	view_transy = ys;
 	view_transz = zs;
+}
+
+static void setPosition2(GLfloat xs, GLfloat ys, GLfloat zs)
+{
+	view_transx2 = xs;
+	view_transy2 = ys;
+	view_transz2 = zs;
 }
 
 
@@ -174,6 +182,7 @@ draw(void)
       { 0, 0, 1 }
    };
    GLfloat mat[16], rot[16], scale[16], trans[16];
+   GLfloat mat2[16], rot2[16], scale2[16], trans2[16];
 
    /* Set modelview/projection matrix */
    make_z_rot_matrix(view_rotx, rot);
@@ -181,9 +190,30 @@ draw(void)
    make_translation_matrix(view_transx, view_transy, view_transz, trans);
    mul_matrix(mat, trans, rot);
    mul_matrix(mat, mat, scale);
+
+    make_z_rot_matrix(view_rotx, rot2);
+	make_scale_matrix(0.5, 0.5, 0.5, scale2);
+	make_translation_matrix(view_transx2, view_transy2, view_transz2, trans2);
+	mul_matrix(mat2, trans2, rot2);
+	mul_matrix(mat2, mat2, scale2);
+
    glUniformMatrix4fv(u_matrix, 1, GL_FALSE, mat);
 
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+   {
+      glVertexAttribPointer(attr_pos, 2, GL_FLOAT, GL_FALSE, 0, verts);
+      glVertexAttribPointer(attr_color, 3, GL_FLOAT, GL_FALSE, 0, colors);
+      glEnableVertexAttribArray(attr_pos);
+      glEnableVertexAttribArray(attr_color);
+
+      glDrawArrays(GL_TRIANGLES, 0, 3);
+
+      glDisableVertexAttribArray(attr_pos);
+      glDisableVertexAttribArray(attr_color);
+   }
+
+   glUniformMatrix4fv(u_matrix, 1, GL_FALSE, mat2);
 
    {
       glVertexAttribPointer(attr_pos, 2, GL_FLOAT, GL_FALSE, 0, verts);
@@ -469,6 +499,7 @@ main(int argc, char *argv[])
 		save_PPM();
 		view_rotx += 5.0;
 		setPosition(i * 0.2 + 0.2, i * 0.2 + 0.2, 0);
+		setPosition2(i * -0.2 + -0.2, i * -0.2 + -0.2, 0);
    }
 
    eglDestroyContext(egl_dpy, egl_ctx);
