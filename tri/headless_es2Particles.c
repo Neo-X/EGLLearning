@@ -24,7 +24,7 @@
 #if USE_FULL_GL
 #include "gl_wrap.h"  /* use full OpenGL */
 #else
-#include <GLES3/gl3.h>  /* use OpenGL ES 3.x */
+#include <GLES2/gl2.h>  /* use OpenGL ES 3.x */
 #endif
 #define EGL_EGLEXT_PROTOTYPES
 #include <EGL/egl.h>
@@ -383,14 +383,31 @@ make_headless_window(EGLDisplay egl_dpy,
               EGLContext *ctxRet,
               EGLSurface *surfRet)
 {
+	/*
+    const EGLint attribs[] ={
+        EGL_RED_SIZE,           8,
+        EGL_GREEN_SIZE,         8,
+        EGL_BLUE_SIZE,          8,
+        EGL_ALPHA_SIZE,         8,
+        EGL_DEPTH_SIZE,         24,
+        EGL_STENCIL_SIZE,       8,
+        EGL_COLOR_BUFFER_TYPE,  EGL_RGB_BUFFER,
+        EGL_SURFACE_TYPE,       EGL_PBUFFER_BIT,
+        EGL_RENDERABLE_TYPE,    EGL_OPENGL_BIT,
+        EGL_NONE
+    };
+    */
+
    static const EGLint attribs[] = {
       EGL_RED_SIZE, 1,
       EGL_GREEN_SIZE, 1,
       EGL_BLUE_SIZE, 1,
       EGL_DEPTH_SIZE, 1,
+      EGL_SURFACE_TYPE,       EGL_PBUFFER_BIT,
       EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
       EGL_NONE
    };
+
 #if USE_FULL_GL
    static const EGLint ctx_attribs[] = {
        EGL_NONE
@@ -415,8 +432,8 @@ make_headless_window(EGLDisplay egl_dpy,
       exit(1);
    }
 
-   assert(config);
    assert(num_configs > 0);
+   assert(config);
 
    if (!eglGetConfigAttrib(egl_dpy, config, EGL_NATIVE_VISUAL_ID, &vid)) {
       printf("Error: eglGetConfigAttrib() failed\n");
@@ -467,7 +484,8 @@ make_headless_window(EGLDisplay egl_dpy,
       eglQuerySurface(egl_dpy, *surfRet, EGL_HEIGHT, &val);
       assert(val == height);
       assert(eglGetConfigAttrib(egl_dpy, config, EGL_SURFACE_TYPE, &val));
-      assert(val & EGL_WINDOW_BIT);
+      // assert(val & EGL_WINDOW_BIT);
+      assert(val);
    }
 
    *ctxRet = ctx;
@@ -554,7 +572,7 @@ int main(int argc, char *argv[])
              "Failed to get EGL_CUDA_DEVICE_NV attribute for device"
            );
            checkEglError("Error retreiving EGL_CUDA_DEVICE_NV attribute for device");
-
+           std::cout << "Device index: " << cudaIndex << std::endl;
            if (cudaIndex == cudaIndexDesired)
              break;
          }
@@ -582,7 +600,7 @@ int main(int argc, char *argv[])
      if (egl_dpy == EGL_NO_DISPLAY)
        throw EGLException("No Disply Found");
    // unsetenv("DISPLAY"); //Force Headless
-	egl_dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+	// egl_dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
    if (!egl_dpy) {
       printf("Error: eglGetDisplay() failed\n");
       return -1;
