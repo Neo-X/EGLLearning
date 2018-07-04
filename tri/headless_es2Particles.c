@@ -26,8 +26,52 @@
 #else
 #include <GLES3/gl3.h>  /* use OpenGL ES 3.x */
 #endif
+#define EGL_EGLEXT_PROTOTYPES
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <iostream>
+
+
+#include <exception>
+
+class EGLException:public std::exception
+{
+  public:
+    const char* message;
+    EGLException(const char* mmessage): message(mmessage) {}
+
+    virtual const char* what() const throw()
+    {
+      return this->message;
+    }
+};
+
+class EGLReturnException: private EGLException
+{
+  using EGLException::EGLException;
+};
+
+class EGLErrorException: private EGLException
+{
+  using EGLException::EGLException;
+};
+
+#define checkEglError(message){ \
+    EGLint err = eglGetError(); \
+    if (err != EGL_SUCCESS) \
+    { \
+        std::cerr << "EGL Error " << std::hex << err << std::dec << " on line " <<  __LINE__ << std::endl; \
+        throw EGLErrorException(message); \
+    } \
+}
+
+#define checkEglReturn(x, message){ \
+    if (x != EGL_TRUE) \
+    { \
+        std::cerr << "EGL returned not true on line " << __LINE__ << std::endl; \
+        throw EGLReturnException(message); \
+    } \
+}
 
 #define FLOAT_TO_FIXED(X)   ((X) * 65535.0)
 
@@ -429,10 +473,15 @@ make_headless_window(EGLDisplay egl_dpy,
    *ctxRet = ctx;
 }
 
+EGLDisplay eglGetDisplay_(NativeDisplayType nativeDisplay=EGL_DEFAULT_DISPLAY)
+{
+  EGLDisplay eglDisplay = eglGetDisplay(nativeDisplay);
+  checkEglError("Failed to Get Display: eglGetDisplay");
+  std::cerr << "Failback to eglGetDisplay" << std::endl;
+  return eglDisplay;
+}
 
-
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    const int winWidth = 300, winHeight = 300;
    EGLSurface egl_surf;
@@ -444,7 +493,96 @@ main(int argc, char *argv[])
    int i;
    const char *s;
 
-   egl_dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+   /*
+   static const int MAX_DEVICES = 4;
+   EGLDeviceEXT eglDevs[MAX_DEVICES];
+   EGLint numDevices;
+
+   PFNEGLQUERYDEVICESEXTPROC eglQueryDevicesEXT =
+     (PFNEGLQUERYDEVICESEXTPROC)
+     eglGetProcAddress("eglQueryDevicesEXT");
+
+   eglQueryDevicesEXT(MAX_DEVICES, eglDevs, &numDevices);
+
+   printf("Detected %d devices\n", numDevices);
+
+   PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT =
+     (PFNEGLGETPLATFORMDISPLAYEXTPROC)
+     eglGetProcAddress("eglGetPlatformDisplayEXT");
+
+   egl_dpy = eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT,
+                                     eglDevs[0], 0);
+*/
+   int cudaIndexDesired = 0;
+   PFNEGLQUERYDEVICESEXTPROC eglQueryDevicesEXT = (PFNEGLQUERYDEVICESEXTPROC)eglGetProcAddress("eglQueryDevicesEXT");
+   checkEglError("Failed to get EGLEXT: eglQueryDevicesEXT");
+   PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT = (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress("eglGetPlatformDisplayEXT");
+   checkEglError("Failed to get EGLEXT: eglGetPlatformDisplayEXT");
+   PFNEGLQUERYDEVICEATTRIBEXTPROC eglQueryDeviceAttribEXT = (PFNEGLQUERYDEVICEATTRIBEXTPROC)eglGetProcAddress("eglQueryDeviceAttribEXT");
+   checkEglError("Failed to get EGLEXT: eglQueryDeviceAttribEXT");
+
+   if (cudaIndexDesired >= 0)
+     {
+       EGLDeviceEXT *eglDevs;
+       EGLint numberDevices;
+
+       //Get number of devices
+       checkEglReturn(
+         eglQueryDevicesEXT(0, NULL, &numberDevices),
+         "Failed to get number of devices. Bad parameter suspected"
+       );
+       checkEglError("Error getting number of devices: eglQueryDevicesEXT");
+
+       std::cerr << numberDevices << " devices found" << std::endl;
+
+       if (numberDevices)
+       {
+         EGLAttrib cudaIndex;
+
+         //Get devices
+         eglDevs = new EGLDeviceEXT[numberDevices];
+         checkEglReturn(
+           eglQueryDevicesEXT(numberDevices, eglDevs, &numberDevices),
+           "Failed to get devices. Bad parameter suspected"
+         );
+         checkEglError("Error getting number of devices: eglQueryDevicesEXT");
+
+         for(i=0; i<numberDevices; i++)
+         {
+           checkEglReturn(
+             eglQueryDeviceAttribEXT(eglDevs[i], EGL_CUDA_DEVICE_NV, &cudaIndex),
+             "Failed to get EGL_CUDA_DEVICE_NV attribute for device"
+           );
+           checkEglError("Error retreiving EGL_CUDA_DEVICE_NV attribute for device");
+
+           if (cudaIndex == cudaIndexDesired)
+             break;
+         }
+         if (i < numberDevices)
+         {
+           egl_dpy = eglGetPlatformDisplayEXT(EGL_PLATFORM_DEVICE_EXT, eglDevs[i], 0);
+           checkEglError("Error getting Platform Display: eglGetPlatformDisplayEXT");
+           std::cerr << "Got Cuda device " << cudaIndex << std::endl;
+         }
+         else
+         {
+           egl_dpy = eglGetDisplay_();
+         }
+       }
+       else
+       {//If no devices were found, or a matching cuda not found, get a Display the normal way
+         egl_dpy = eglGetDisplay_();
+       }
+     }
+     else
+     {
+       egl_dpy = eglGetDisplay_();
+     }
+
+     if (egl_dpy == EGL_NO_DISPLAY)
+       throw EGLException("No Disply Found");
+   // unsetenv("DISPLAY"); //Force Headless
+	egl_dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
    if (!egl_dpy) {
       printf("Error: eglGetDisplay() failed\n");
       return -1;
